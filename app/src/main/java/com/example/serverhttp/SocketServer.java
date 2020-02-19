@@ -37,6 +37,40 @@ public class SocketServer extends Thread {
         bRunning = false;
     }
 
+    private String makeHeader404(){
+        //cesta k souboru nebo adresáři neexistuje (vypíšeme error 404)
+        Log.d("SERVER", "OdpověĎ serveru 404 File not Found");
+        //vypsání odpovědi 404 Chyba
+        String content = "<html>\n" +
+                "<head><meta charset='UTF-8'></head>\n"+
+                "<body>\n" +
+                "<h1>File not found 404!</h1>\n" +
+                "</body>\n" +
+                "</html>";
+        String notFound = "HTTP/1.1 404 OK\n" +
+                "Date: Mon, 27 Jul 2009 12:28:53 GMT\n" +
+                "Server: Apache/2.2.14 (Win32)\n" +
+                "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n" +
+                "Content-Length: " + content.length() + "\n" +
+                "Content-Type: text/html; charset=utf-8\n" + content;
+        return  notFound;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private String makeHeader200(File toOpen, long contentLength) throws IOException {
+        Log.d("SERVER", "OdpověĎ serveru 200 OK");
+        String mimeType = Files.probeContentType(toOpen.toPath());
+        String ok = "HTTP/1.1 200 OK\n" +
+                "Date: Mon, 27 Jul 2009 12:28:53 GMT\n" +
+                "Server: Apache/2.2.14 (Win32)\n" +
+                "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n" +
+                "Content-Length: " + contentLength + "\n" +
+                "Content-Type:" + mimeType +  "; charset=utf-8 \n" +
+                "\n";
+        return ok;
+    }
+
+
     @RequiresApi(api = Build.VERSION_CODES.O)
     public void run() {
         try {
@@ -105,17 +139,7 @@ public class SocketServer extends Thread {
                     if(toOpen.isFile()){
                         //pokud se jedná o soubor tak ho vypiš
 
-                        Log.d("SERVER", "OdpověĎ serveru 200 OK");
-                        String mimeType = Files.probeContentType(toOpen.toPath());
-                        //vypsání odpovědi 200 OK
-                        String ok = "HTTP/1.1 200 OK\n" +
-                                "Date: Mon, 27 Jul 2009 12:28:53 GMT\n" +
-                                "Server: Apache/2.2.14 (Win32)\n" +
-                                "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n" +
-                                "Content-Length: " + toOpen.length() + "\n" +
-                                "Content-Type:" + mimeType + "\n" +
-                                "\n";
-                        out.write(ok.getBytes());
+                        out.write(makeHeader200(toOpen,toOpen.length()).getBytes());
                         out.write(Files.readAllBytes(toOpen.toPath()));
                         out.flush();
                     }
@@ -128,6 +152,7 @@ public class SocketServer extends Thread {
                         }
 
                         String content = "<html>\n" +
+                                "<head><meta charset='UTF-8'></head>\n"+
                                 "<body>\n" +
                                 "<h1>Výpis obsahu adresáře:</h1>\n";
 
@@ -140,35 +165,16 @@ public class SocketServer extends Thread {
                         content += "</body>\n" +
                                 "</html>\n";
 
-                        String ok = "HTTP/1.1 200 OK\n" +
-                                "Date: Mon, 27 Jul 2009 12:28:53 GMT\n" +
-                                "Server: Apache/2.2.14 (Win32)\n" +
-                                "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n" +
-                                "Content-Length: " + content.length() + "\n" +
-                                "Content-Type: text/html\n" +
-                                "charset=UTF-8\n" +
-                                "\n"+ content;
+                        String ok = makeHeader200(toOpen,content.length());
+                        ok+=content;
 
                         out.write(ok.getBytes());
                         out.flush();
                     }
                 } else {
                     //cesta k souboru nebo adresáři neexistuje (vypíšeme error 404)
-                    Log.d("SERVER", "OdpověĎ serveru 404 File not Found");
-                    //vypsání odpovědi 404 Chyba
-                    String content = "<html>\n" +
-                            "<body>\n" +
-                            "<h1>File not found 404!</h1>\n" +
-                            "</body>\n" +
-                            "</html>";
-                    String notFound = "HTTP/1.1 404 OK\n" +
-                            "Date: Mon, 27 Jul 2009 12:28:53 GMT\n" +
-                            "Server: Apache/2.2.14 (Win32)\n" +
-                            "Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT\n" +
-                            "Content-Length: " + content.length() + "\n" +
-                            "Content-Type: text/html\n" +
-                            "\n" + content;
-                    out.write(notFound.getBytes());
+
+                    out.write(makeHeader404().getBytes());
                     out.flush();
                 }
 
