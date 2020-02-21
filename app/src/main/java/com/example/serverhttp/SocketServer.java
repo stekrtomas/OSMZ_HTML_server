@@ -1,14 +1,11 @@
 package com.example.serverhttp;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
+
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -82,6 +79,9 @@ public class SocketServer extends Thread {
                 Socket s = serverSocket.accept();
                 Log.d("SERVER", "Socket Accepted");
 
+                Thread thread = new Thread(new HttpServerThread(s));
+                thread.run();
+                /*
                 OutputStream out = s.getOutputStream();
                 BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
@@ -132,7 +132,7 @@ public class SocketServer extends Thread {
                     out.write(Files.readAllBytes(toOpenIndex.toPath()));
                     out.flush();
                 }*/
-
+                /*
                 if (toOpen.exists()) {
                     //cesta k souboru nebo adresáři existuje
 
@@ -180,6 +180,7 @@ public class SocketServer extends Thread {
 
                 s.close();
                 Log.d("SERVER", "Socket Closed");
+                */
             }
         } catch (IOException e) {
             if (serverSocket != null && serverSocket.isClosed())
