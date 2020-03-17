@@ -18,6 +18,12 @@
         android:layout_height="wrap_content"
         android:text="@string/btn2_text" />
 
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="StartCamera" />
+
     <EditText
         android:id="@+id/editNumber"
         android:layout_width="match_parent"

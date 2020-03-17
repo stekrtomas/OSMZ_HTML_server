@@ -15,6 +15,8 @@ import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.content.Context;
+import android.hardware.Camera;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -31,7 +33,7 @@ public class SocketServer extends Thread {
     boolean bRunning;
     Semaphore sem;
 
-    public SocketServer(Handler handler, int threadCount) {
+    public SocketServer(Handler handler, int threadCount, Context applicationContext, Camera camera) {
         this.handler = handler;
         this.sem = new Semaphore(threadCount);
     }
