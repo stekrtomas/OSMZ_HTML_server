@@ -27,15 +27,21 @@ import androidx.annotation.RequiresApi;
 public class SocketServer extends Thread {
 
     private final Handler handler;
+    private final CameraServer cameraServer;
     ExecutorService executorService = Executors.newCachedThreadPool();
     ServerSocket serverSocket;
     public final int port = 12345;
     boolean bRunning;
     Semaphore sem;
+    private final Context applicationContext;
+    private final Camera camera;
 
-    public SocketServer(Handler handler, int threadCount, Context applicationContext, Camera camera) {
+    public SocketServer(Handler handler, int threadCount, Context applicationContext, Camera camera) throws IOException, InterruptedException {
         this.handler = handler;
         this.sem = new Semaphore(threadCount);
+        this.applicationContext = applicationContext;
+        this.camera = camera;
+        this.cameraServer = new CameraServer(camera);
     }
 
     public void close() {
@@ -59,7 +65,7 @@ public class SocketServer extends Thread {
                 Log.d("SERVER", "Socket Waiting for connection");
                 Socket s = serverSocket.accept();
                 Log.d("SERVER", "Socket Accepted");
-                executorService.execute(new HttpServerThread(s, handler, sem));
+                executorService.execute(new HttpServerThread(s, handler, sem, this.cameraServer ));
             }
         } catch (IOException e) {
             if (serverSocket != null && serverSocket.isClosed())

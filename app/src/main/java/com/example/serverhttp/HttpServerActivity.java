@@ -16,6 +16,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import java.io.IOException;
+
 public class HttpServerActivity extends Activity implements OnClickListener{
 
 	private SocketServer s;
@@ -81,7 +83,13 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 			}else{
 				threadCount = Integer.parseInt(editText.getText().toString());
 			}
-			s = new SocketServer(handler,threadCount,this.getApplicationContext(), camera);
+			try {
+				s = new SocketServer(handler,threadCount,this.getApplicationContext(), camera);
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 
 			s.start();
 		}
@@ -99,7 +107,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 
 	/** Check if this device has a camera */
 	private boolean checkCameraHardware(Context context) {
-		if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA)){
+		if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)){
 			// this device has a camera
 			return true;
 		} else {

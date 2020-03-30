@@ -12,11 +12,14 @@ import androidx.annotation.RequiresApi;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,13 +27,15 @@ public class HttpServerThread implements Runnable {
 
     private final Handler handler;
     private Semaphore sem;
+    private CameraServer cameraServer;
     private Socket s;
 
 
-    public HttpServerThread(Socket socket, Handler handler, Semaphore sem) {
+    public HttpServerThread(Socket socket, Handler handler, Semaphore sem, CameraServer cameraServer) {
         this.s = socket;
         this.handler = handler;
         this.sem = sem;
+        this.cameraServer = cameraServer;
         Log.d("SERVER", "Start vlákna HttpServerThread!");
     }
 
@@ -52,7 +57,7 @@ public class HttpServerThread implements Runnable {
 
             }
 
-            if(noBlocked) {
+            if (noBlocked) {
                 Pattern pattern = Pattern.compile("GET (.+) HTTP.*");
                 Matcher matcher = pattern.matcher(tmp);
 
@@ -75,65 +80,97 @@ public class HttpServerThread implements Runnable {
                 File toOpen = new File(pathFile);
 
 
-                if (toOpen.exists()) {
-                    //cesta k souboru nebo adresáři existuje
+                if (path.equals("/camera")) {
+                    this.cameraServer.addSocket(out, this.s);
+                } else if (path.startsWith("/cgi")) {
+                       String splitted[] =  path.split("/");
+                    splitted = Arrays.copyOfRange(splitted, 2, splitted.length);
+                    ProcessBuilder pb = new ProcessBuilder(splitted);
+                    try {
+                        pb.redirectErrorStream(true);
+                        Process process = pb.start();
+                        String body = "";
+                        InputStreamReader stream = new InputStreamReader(process.getInputStream());
+                        int ch;
+                        StringBuilder sb = new StringBuilder();
+                        while((ch = stream.read()) != -1){
+                            sb.append((char)ch);
+                        }
+                        body = sb.toString();
 
-                    if (toOpen.isFile()) {
-                        //pokud se jedná o soubor tak ho vypiš
-
-                        out.write(makeHeader200(toOpen, toOpen.length()).getBytes());
-                        out.write(Files.readAllBytes(toOpen.toPath()));
-                        bundle.putString("LOG", pathFile + "\nPocet bitu: " + String.valueOf(toOpen.length()) + "\n");
-                        msg.setData(bundle);
-                        handler.sendMessage(msg);
+                        process.waitFor(10, TimeUnit.SECONDS);
+                        String response = makeHeader200(toOpen, body.length()) + body;
+                        out.write(response.getBytes());
                         out.flush();
-                    } else {
-                        //pokud se nejedná o soubor tak se vypíše obsah adresáře
+                    } catch (Exception ex) {
+                        String body = "Error in command: " + String.join(",", splitted) + " \n " + ex.getLocalizedMessage();
 
-                        File[] files = toOpen.listFiles();
-                        if (path.equals("/")) {
-                            path = "";
-                        }
-
-                        String content = "<html>\n" +
-                                "<head><meta charset='UTF-8'></head>\n" +
-                                "<body>\n" +
-                                "<h1>Výpis obsahu adresáře:</h1>\n";
-
-                        for (File file : files
-                        ) {
-                            String li = "<li><a href='" + path + "/" + file.getName() + "'>" + file.getName() + "</a></li> \n";
-                            content += li;
-                        }
-
-                        content += "</body>\n" +
-                                "</html>\n";
-
-                        String ok = makeHeader200(toOpen, content.length());
-                        ok += content;
-                        bundle.putString("LOG", pathFile + "\nPocet bitu: " + String.valueOf(content.length()) + "\n");
-
-                        msg.setData(bundle);
-                        handler.sendMessage(msg);
-                        out.write(ok.getBytes());
+                        String response = "";
+                        response = makeHeader200(toOpen, body.length()) + body;
+                        out.write(response.getBytes());
                         out.flush();
                     }
+                    s.close();
                 } else {
-                    //cesta k souboru nebo adresáři neexistuje (vypíšeme error 404)
+                    if (toOpen.exists()) {
+                        //cesta k souboru nebo adresáři existuje
 
-                    out.write(makeHeader404().getBytes());
-                    out.flush();
+                        if (toOpen.isFile()) {
+                            //pokud se jedná o soubor tak ho vypiš
+
+                            out.write(makeHeader200(toOpen, toOpen.length()).getBytes());
+                            out.write(Files.readAllBytes(toOpen.toPath()));
+                            bundle.putString("LOG", pathFile + "\nPocet bitu: " + String.valueOf(toOpen.length()) + "\n");
+                            msg.setData(bundle);
+                            handler.sendMessage(msg);
+                            out.flush();
+                        } else {
+                            //pokud se nejedná o soubor tak se vypíše obsah adresáře
+
+                            File[] files = toOpen.listFiles();
+                            if (path.equals("/")) {
+                                path = "";
+                            }
+
+                            String content = "<html>\n" +
+                                    "<head><meta charset='UTF-8'></head>\n" +
+                                    "<body>\n" +
+                                    "<h1>Výpis obsahu adresáře:</h1>\n";
+
+                            for (File file : files
+                            ) {
+                                String li = "<li><a href='" + path + "/" + file.getName() + "'>" + file.getName() + "</a></li> \n";
+                                content += li;
+                            }
+
+                            content += "</body>\n" +
+                                    "</html>\n";
+
+                            String ok = makeHeader200(toOpen, content.length());
+                            ok += content;
+                            bundle.putString("LOG", pathFile + "\nPocet bitu: " + String.valueOf(content.length()) + "\n");
+
+                            msg.setData(bundle);
+                            handler.sendMessage(msg);
+                            out.write(ok.getBytes());
+                            out.flush();
+                        }
+                    } else {
+                        //cesta k souboru nebo adresáři neexistuje (vypíšeme error 404)
+
+                        out.write(makeHeader404().getBytes());
+                        out.flush();
+                    }
                 }
-
-            }
-            else{
+                if (!path.equals("/camera")) {
+                    s.close();
+                }
+            } else {
                 out.write(makeHeader500().getBytes());
                 out.flush();
-            }
                 s.close();
-                Log.d("SERVER", "Socket Closed");
-
-
+            }
+            Log.d("SERVER", "Socket Closed");
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
