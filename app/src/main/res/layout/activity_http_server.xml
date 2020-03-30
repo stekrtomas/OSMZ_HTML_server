@@ -18,6 +18,12 @@
         android:layout_height="wrap_content"
         android:text="@string/btn2_text" />
 
+    <Button
+        android:id="@+id/serviceButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Run as service" />
+
     <EditText
         android:id="@+id/editNumber"
         android:layout_width="match_parent"

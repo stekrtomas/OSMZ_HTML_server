@@ -32,7 +32,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 	private EditText editText; //proměnná pro počet povolených vláken
 	Button btn1;
 	Button btn2;
-	Button btn3;
+	Button serviceButton;
 	Camera camera;
 
 	Handler handler = new Handler(Looper.getMainLooper()){
@@ -59,6 +59,9 @@ public class HttpServerActivity extends Activity implements OnClickListener{
         btn2.setOnClickListener(this);
         textView.setText("Výpis logu vlákna!\n");
 		editText.setText("1");
+
+		serviceButton = (Button)findViewById(R.id.serviceButton);
+		serviceButton.setEnabled(true);
 
 		camera = getCameraInstance();
     }
@@ -103,6 +106,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 				e.printStackTrace();
 			}
 		}
+		
 	}
 
 	/** Check if this device has a camera */
