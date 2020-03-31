@@ -1,24 +1,16 @@
 package com.example.serverhttp;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import android.content.Context;
 import android.hardware.Camera;
 import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 
@@ -27,7 +19,7 @@ import androidx.annotation.RequiresApi;
 public class SocketServer extends Thread {
 
     private final Handler handler;
-    private final CameraServer cameraServer;
+    private final CameraController cameraController;
     ExecutorService executorService = Executors.newCachedThreadPool();
     ServerSocket serverSocket;
     public final int port = 12345;
@@ -41,7 +33,7 @@ public class SocketServer extends Thread {
         this.sem = new Semaphore(threadCount);
         this.applicationContext = applicationContext;
         this.camera = camera;
-        this.cameraServer = new CameraServer(camera);
+        this.cameraController = new CameraController(camera);
     }
 
     public void close() {
@@ -65,7 +57,7 @@ public class SocketServer extends Thread {
                 Log.d("SERVER", "Socket Waiting for connection");
                 Socket s = serverSocket.accept();
                 Log.d("SERVER", "Socket Accepted");
-                executorService.execute(new HttpServerThread(s, handler, sem, this.cameraServer ));
+                executorService.execute(new HttpServerThread(s, handler, sem, this.cameraController));
             }
         } catch (IOException e) {
             if (serverSocket != null && serverSocket.isClosed())

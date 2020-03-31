@@ -12,7 +12,6 @@ import androidx.annotation.RequiresApi;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -27,15 +26,15 @@ public class HttpServerThread implements Runnable {
 
     private final Handler handler;
     private Semaphore sem;
-    private CameraServer cameraServer;
+    private CameraController cameraController;
     private Socket s;
 
 
-    public HttpServerThread(Socket socket, Handler handler, Semaphore sem, CameraServer cameraServer) {
+    public HttpServerThread(Socket socket, Handler handler, Semaphore sem, CameraController cameraController) {
         this.s = socket;
         this.handler = handler;
         this.sem = sem;
-        this.cameraServer = cameraServer;
+        this.cameraController = cameraController;
         Log.d("SERVER", "Start vlákna HttpServerThread!");
     }
 
@@ -44,9 +43,12 @@ public class HttpServerThread implements Runnable {
     public void run() {
         Boolean noBlocked = sem.tryAcquire();
         try {
+            Message msg = null;
             OutputStream out = s.getOutputStream();
             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
-            Message msg = handler.obtainMessage();
+            if (handler != null) {
+                msg = handler.obtainMessage();
+            }
             Bundle bundle = new Bundle();
             String tmp = in.readLine();
 
@@ -81,9 +83,9 @@ public class HttpServerThread implements Runnable {
 
 
                 if (path.equals("/camera")) {
-                    this.cameraServer.addSocket(out, this.s);
+                    this.cameraController.addSocket(out, this.s);
                 } else if (path.startsWith("/cgi")) {
-                       String splitted[] =  path.split("/");
+                    String splitted[] = path.split("/");
                     splitted = Arrays.copyOfRange(splitted, 2, splitted.length);
                     ProcessBuilder pb = new ProcessBuilder(splitted);
                     try {
@@ -93,8 +95,8 @@ public class HttpServerThread implements Runnable {
                         InputStreamReader stream = new InputStreamReader(process.getInputStream());
                         int ch;
                         StringBuilder sb = new StringBuilder();
-                        while((ch = stream.read()) != -1){
-                            sb.append((char)ch);
+                        while ((ch = stream.read()) != -1) {
+                            sb.append((char) ch);
                         }
                         body = sb.toString();
 
@@ -121,8 +123,10 @@ public class HttpServerThread implements Runnable {
                             out.write(makeHeader200(toOpen, toOpen.length()).getBytes());
                             out.write(Files.readAllBytes(toOpen.toPath()));
                             bundle.putString("LOG", pathFile + "\nPocet bitu: " + String.valueOf(toOpen.length()) + "\n");
-                            msg.setData(bundle);
-                            handler.sendMessage(msg);
+                            if (msg != null) {
+                                msg.setData(bundle);
+                                handler.sendMessage(msg);
+                            }
                             out.flush();
                         } else {
                             //pokud se nejedná o soubor tak se vypíše obsah adresáře
@@ -148,10 +152,12 @@ public class HttpServerThread implements Runnable {
 
                             String ok = makeHeader200(toOpen, content.length());
                             ok += content;
-                            bundle.putString("LOG", pathFile + "\nPocet bitu: " + String.valueOf(content.length()) + "\n");
+                            if (msg != null) {
+                                bundle.putString("LOG", pathFile + "\nPocet bitu: " + String.valueOf(content.length()) + "\n");
 
-                            msg.setData(bundle);
-                            handler.sendMessage(msg);
+                                msg.setData(bundle);
+                                handler.sendMessage(msg);
+                            }
                             out.write(ok.getBytes());
                             out.flush();
                         }
